@@ -1,0 +1,80 @@
+name: Release Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check_release_version:
+    name: Check For Release Version
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history to check tags
+
+    - name: Validate PR title and check release
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const prTitle = context.payload.pull_request.title;
+          console.log(`PR Title: ${prTitle}`);
+
+          const semverRegex = /^v(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*))?(?:\+([a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*))?/;
+          const match = prTitle.match(semverRegex);
+
+          let conclusion = "failure";
+          let title = "Release Check Failed";
+          let summary = "";
+
+          if (!match) {
+            summary = `PR title "${prTitle}" does not start with a valid semantic version (e.g., "v1.2.3 - Description").`;
+          } else {
+            const versionTag = match[0];
+            console.log(`Extracted version: ${versionTag}`);
+
+            try {
+              // Check if this tag already exists
+              const { data: tags } = await github.rest.repos.listTags({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+
+              const existingTag = tags.find(tag => tag.name === versionTag);
+
+              if (existingTag) {
+                summary = `Version tag "${versionTag}" already exists. Please use a new version number.`;
+              } else {
+                conclusion = "success";
+                title = "Release Check Passed";
+                summary = `Valid semantic version "${versionTag}" found and no existing release tag conflicts.`;
+              }
+            } catch (error) {
+              console.error('Error checking tags:', error);
+              summary = `Error checking existing tags: ${error.message}`;
+            }
+          }
+
+          // Create status check
+          await github.rest.checks.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            name: "release-check",
+            head_sha: context.payload.pull_request.head.sha,
+            status: "completed",
+            conclusion: conclusion,
+            output: {
+              title: title,
+              summary: summary
+            }
+          });
+
+          // Fail the job if validation failed
+          if (conclusion === "failure") {
+            core.setFailed(summary);
+          }

@@ -1,0 +1,4 @@
+bench.path,bench.duration,bench.samples,bench.repeats,stats.mean,stats.stddev,stats.p10,stats.p50,stats.p90,stats.min,stats.max,tags
+server/luau/math/sqrt/exp,2.3447322889987845,1000,100000,16712,980,16142,16339,17752,15075,25233,EXP;MATH_SQRT_IS_SLOW;NUMBER
+server/luau/math/sqrt/pow,3.5343793829961214,1000,100000,28608,934,27886,28406,29527,27372,39131,MATH;MATH_SQRT_IS_SLOW;NUMBER
+server/luau/math/sqrt/sqrt,2.4607288330007577,1000,100000,17866,630,17449,17641,18665,17242,21283,MATH;MATH_SQRT_IS_SLOW;NUMBER
